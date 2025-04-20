@@ -29,13 +29,18 @@
 
           <!-- Projects Dropdown -->
           <li>
-            <div
-              class="projects-header"
-              :class="{ active: currentView === 'projects' }"
-              @click="toggleProjectsMenu"
-            >
-              Projects
-              <span class="arrow">{{ showProjectsMenu ? '▾' : '▸' }}</span>
+            <div class="projects-section">
+              <button class="create-project-btn" @click="showCreateProjectModal = true">
+                + Create Project
+              </button>
+              <div
+                class="projects-header"
+                :class="{ active: currentView === 'projects' }"
+                @click="toggleProjectsMenu"
+              >
+                Projects
+                <span class="arrow">{{ showProjectsMenu ? '▾' : '▸' }}</span>
+              </div>
             </div>
             <ul v-if="showProjectsMenu" class="submenu">
               <li
@@ -120,11 +125,83 @@
         </div>
       </section>
     </div>
+
+    <!-- Create Project Modal -->
+    <div v-if="showCreateProjectModal" class="modal-overlay">
+      <div class="modal">
+        <h3>Create New Project</h3>
+        <form @submit.prevent="createProject">
+          <div class="form-group">
+            <label>Project Name</label>
+            <input 
+              v-model="newProject.project_name" 
+              type="text" 
+              required
+            >
+          </div>
+          
+          <div class="form-group">
+            <label>Description</label>
+            <textarea 
+              v-model="newProject.description"
+              rows="3"
+            ></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Status</label>
+            <select v-model="newProject.status">
+              <option value="Waiting">Waiting</option>
+              <option value="On Progress">On Progress</option>
+              <option value="Hold">Hold</option>
+              <option value="Completed">Completed</option>
+              <option value="Canceled">Canceled</option>
+            </select>
+          </div>
+          
+          <div class="form-group checkbox">
+            <label>
+              <input 
+                type="checkbox" 
+                v-model="newProject.is_parent"
+              >
+              Is Parent Project
+            </label>
+          </div>
+
+          <div v-if="!newProject.is_parent" class="form-group">
+            <label>Parent Project</label>
+            <select 
+              v-model="newProject.parent_project"
+              required
+            >
+              <option value="">Select Parent Project</option>
+              <option 
+                v-for="proj in parentProjects" 
+                :key="proj.name" 
+                :value="proj.name"
+              >
+                {{ proj.project_name }}
+              </option>
+            </select>
+          </div>
+          
+          <div class="modal-actions">
+            <button type="button" @click="showCreateProjectModal = false">
+              Cancel
+            </button>
+            <button type="submit" class="primary">
+              Create Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 // STATE
 const currentView      = ref('employees')
@@ -158,6 +235,18 @@ const statusLabels = {
   completed:   'Completed',
   canceled:    'Canceled'
 }
+
+const showCreateProjectModal = ref(false)
+const newProject = ref({
+  project_name: '',
+  description: '',
+  status: 'Waiting',
+  is_parent: true,
+  parent_project: ''
+})
+const parentProjects = computed(() => {
+  return allProjects.value.filter(p => !p.parent_project)
+})
 
 // FRAPPE CREDENTIALS
 const apiKey    = 'a8f68ca349940e1'
@@ -206,7 +295,15 @@ async function loadEmployees() {
 // LOAD PROJECTS
 async function loadProjects() {
   try {
-    allProjects.value = await fetchFromFrappe('sanaamstride.api.project.get_all')
+    const response = await fetch('http://127.0.0.1:8000/api/method/sanaamstride.api.project.get_all', {
+      headers: {
+        'Authorization': `token ${apiKey}:${apiSecret}`,
+        'Accept': 'application/json'
+      }
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const { message } = await response.json()
+    allProjects.value = message || []
   } catch (error) {
     console.error('Failed to load projects:', error)
   }
@@ -261,6 +358,49 @@ function hasItemsInStatus(status) {
   const tasks = tasksByStatus(status)
   const childProjects = childProjectsByStatus(status)
   return tasks.length > 0 || childProjects.length > 0
+}
+
+// CREATE PROJECT
+async function createProject() {
+  try {
+    const formData = new URLSearchParams()
+    formData.append('project_name', newProject.value.project_name)
+    formData.append('description', newProject.value.description)
+    formData.append('status', newProject.value.status)
+    formData.append('is_parent', newProject.value.is_parent ? '1' : '0')
+    
+    if (!newProject.value.is_parent && newProject.value.parent_project) {
+      formData.append('parent_project', newProject.value.parent_project)
+    }
+    
+    const response = await fetch('http://127.0.0.1:8000/api/method/sanaamstride.api.project.create_project', {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${apiKey}:${apiSecret}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData
+    })
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    
+    // Refresh projects list
+    await loadProjects()
+    
+    // Reset form and close modal
+    newProject.value = {
+      project_name: '',
+      description: '',
+      status: 'Waiting',
+      is_parent: true,
+      parent_project: ''
+    }
+    showCreateProjectModal.value = false
+    
+  } catch (error) {
+    console.error('Failed to create project:', error)
+    alert('Failed to create project. Please try again.')
+  }
 }
 
 // HANDLE RESIZE - Always show sidebar on desktop
@@ -601,5 +741,115 @@ onBeforeUnmount(() => {
   .content-section {
     max-width: 1600px;
   }
+}
+
+/* Add to your existing <style> section */
+.create-project-btn {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  background: #0d6efd;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.create-project-btn:hover {
+  background: #0b5ed7;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.form-group.checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.form-group.checkbox input {
+  width: auto;
+  margin-right: 0.5rem;
+}
+
+.form-group select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  background-color: white;
+}
+
+.form-group select:focus {
+  border-color: #0d6efd;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.modal-actions button {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.modal-actions button.primary {
+  background: #0d6efd;
+  color: white;
+  border: none;
+}
+
+.modal-actions button:not(.primary) {
+  background: #f8f9fa;
+  border: 1px solid #ddd;
 }
 </style>
