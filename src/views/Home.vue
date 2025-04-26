@@ -267,7 +267,7 @@ function toggleSidebar() {
 
 // GENERIC FRAPPE FETCH
 async function fetchFromFrappe(method, params = {}) {
-  const url = new URL(`http://127.0.0.1:8000/api/method/${method}`)
+  const url = new URL(`${import.meta.env.VITE_URL}/api/method/${method}`)
   Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v))
   const res = await fetch(url, {
     credentials: 'include',
@@ -296,7 +296,7 @@ async function loadEmployees() {
 // LOAD PROJECTS
 async function loadProjects() {
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/method/sanaamstride.api.project.get_all', {
+    const response = await fetch(`${import.meta.env.VITE_URL}/api/method/sanaamstride.api.project.get_all`, {
       headers: {
         'Authorization': `token ${apiKey}:${apiSecret}`,
         'Accept': 'application/json'
@@ -371,7 +371,7 @@ async function createProject() {
       formData.append('parent_project', newProject.value.parent_project)
     }
     
-    const response = await fetch('http://127.0.0.1:8000/api/method/sanaamstride.api.project.create_project', {
+    const response = await fetch(`${import.meta.env.VITE_URL}/api/method/sanaamstride.api.project.create_project`, {
       method: 'POST',
       headers: {
         'Authorization': `token ${apiKey}:${apiSecret}`,
@@ -416,6 +416,7 @@ onMounted(async () => {
   showSidebar.value = true
   window.addEventListener('resize', handleResize)
   await Promise.all([loadEmployees(), loadProjects()])
+  console.log('VITE_URL:', import.meta.env.VITE_URL);
 })
 
 onBeforeUnmount(() => {
