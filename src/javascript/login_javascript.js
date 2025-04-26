@@ -22,7 +22,7 @@ export function useLogin() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'token f4d8bec94019549:1a48abc38187727'
+          'Authorization': `token ${import.meta.env.VITE_API_KEY}:${import.meta.env.VITE_API_SECRET}`
         },
         body: JSON.stringify({
           usr: credentials.value.username,
@@ -39,12 +39,12 @@ export function useLogin() {
 
       // Store authentication info
       localStorage.setItem('isAuthenticated', 'true')
-      localStorage.setItem('accessToken', 'token f4d8bec94019549:1a48abc38187727')
+      localStorage.setItem('accessToken', `token ${import.meta.env.VITE_API_KEY}:${import.meta.env.VITE_API_SECRET}`)
       
       // Get user info after successful login
       const userResponse = await fetch(`${import.meta.env.VITE_URL}/api/method/frappe.auth.get_logged_user`, {
         headers: {
-          'Authorization': 'token f4d8bec94019549:1a48abc38187727'
+          'Authorization': `token ${import.meta.env.VITE_API_KEY}:${import.meta.env.VITE_API_SECRET}`
         }
       })
       
@@ -53,8 +53,8 @@ export function useLogin() {
 
       localStorage.setItem('userInfo', JSON.stringify({
         username: userData.message,
-        apiKey: 'f4d8bec94019549',
-        apiSecret: '1a48abc38187727'
+        apiKey: import.meta.env.VITE_API_KEY,
+        apiSecret: import.meta.env.VITE_API_SECRET
       }))
       
       // Navigate to home page
@@ -74,4 +74,4 @@ export function useLogin() {
     credentials,
     handleLogin
   }
-} 
+}
