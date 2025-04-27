@@ -252,8 +252,8 @@ const parentProjects = computed(() => {
 })
 
 // FRAPPE CREDENTIALS
-const apiKey    = 'a8f68ca349940e1'
-const apiSecret = '5ac9be99799c90f'
+const apiKey    = import.meta.env.VITE_apiKey
+const apiSecret = import.meta.env.VITE_apiSecret
 
 // MOBILE CHECK
 function isMobile() {
